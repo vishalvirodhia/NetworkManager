@@ -42,7 +42,8 @@ class NetworkManager {
     private var requestTimeOutInterval:TimeInterval = 70
     private var parametres: [String: Any]?
     private var files = [MultipartFile]()
-    
+    private let boundary = "----WebKitFormBoundarycC4YiaUFwM44F6rT"
+
     
     typealias networkHandler = (ResponseType) -> ()
     private var completionCallBack: networkHandler?
@@ -103,10 +104,6 @@ class NetworkManager {
     // MARK: Completion handler
     public func completion(callback: @escaping networkHandler) {
         completionCallBack = callback
-        if files.isEmpty {
-            startRequest()
-            return
-        }
         startMultipartRequest()
     }
     
@@ -144,22 +141,11 @@ class NetworkManager {
     }
     
     private func startMultipartRequest() {
-        
-        let boundary = "----WebKitFormBoundarycC4YiaUFwM44F6rT"
         var body = Data()
-        if let params = self.parametres {
-            for (key, value) in params {
-                body.append(("--\(boundary)\r\n").data(using: String.Encoding.utf8, allowLossyConversion: true)!)
-                body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n".data(using: String.Encoding.utf8, allowLossyConversion: true)!)
-                body.append("\(value)\r\n".data(using: String.Encoding.utf8, allowLossyConversion: true)!)
-            }
-        }
-        for file in self.files {
-            body.append(("--\(boundary)\r\n").data(using: String.Encoding.utf8, allowLossyConversion: true)!)
-            body.append("Content-Disposition: form-data; name=\"\(file.name)\"; filename=\"\(file.fileName)\"\r\n" .data(using: String.Encoding.utf8, allowLossyConversion: true)!)
-            body.append("Content-Type: \(file.mimeType)\r\n\r\n".data(using: String.Encoding.utf8, allowLossyConversion: true)!)
-            body.append(file.data)
-            body.append("\r\n".data(using: String.Encoding.utf8, allowLossyConversion: true)!)
+        body = addParamatersToPostRequest(body: body)
+        
+        if !files.isEmpty {
+            body = addFilesToBody(body: body)
         }
         
         body.append("--\(boundary)--".data(using: String.Encoding.utf8, allowLossyConversion: true)!)
@@ -180,6 +166,31 @@ class NetworkManager {
         
         startDataTask(session: session, request: request)
         
+    }
+    
+    private func addParamatersToPostRequest(body: Data) -> Data {
+        var body = body
+        if let params = self.parametres {
+            for (key, value) in params {
+                body.append(("--\(boundary)\r\n").data(using: String.Encoding.utf8, allowLossyConversion: true)!)
+                body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n".data(using: String.Encoding.utf8, allowLossyConversion: true)!)
+                body.append("\(value)\r\n".data(using: String.Encoding.utf8, allowLossyConversion: true)!)
+            }
+        }
+        
+        return body
+    }
+    
+    private func addFilesToBody(body: Data) -> Data {
+        var body = body
+        for file in self.files {
+            body.append(("--\(boundary)\r\n").data(using: String.Encoding.utf8, allowLossyConversion: true)!)
+            body.append("Content-Disposition: form-data; name=\"\(file.name)\"; filename=\"\(file.fileName)\"\r\n" .data(using: String.Encoding.utf8, allowLossyConversion: true)!)
+            body.append("Content-Type: \(file.mimeType)\r\n\r\n".data(using: String.Encoding.utf8, allowLossyConversion: true)!)
+            body.append(file.data)
+            body.append("\r\n".data(using: String.Encoding.utf8, allowLossyConversion: true)!)
+        }
+        return body
     }
     
     // MARK: for completing task
